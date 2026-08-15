@@ -8,5 +8,6 @@ class TravelState(TypedDict):
     user_query: str
     flight_results: str
     hotel_results: str
+    weather_results: str
     itinerary: str
     llm_calls: Annotated[int, operator.add]

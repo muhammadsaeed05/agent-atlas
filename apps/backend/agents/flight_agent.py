@@ -43,5 +43,5 @@ async def flight_agent_node(state: TravelState) -> Dict[str, Any]:
         "messages": [
             AIMessage(content="Flight recommendation generated")
         ],
-        "llm_calls": state.get("llm_calls") + len(result["messages"]) // 2,
+        "llm_calls": max(1, len(result.get("messages", [])) // 2),
     }

@@ -13,6 +13,7 @@ async def itinerary_agent_node(state: TravelState) -> Dict[str, Any]:
     - User Request: {state.get('user_query')}
     - Flights: {state.get('flight_results')}
     - Accommodation: {state.get('hotel_results')}
+    - Weather & Forecast: {state.get('weather_results')}
     """
     
     response = await llm.ainvoke([HumanMessage(content=prompt)])
