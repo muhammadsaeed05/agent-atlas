@@ -1,21 +1,47 @@
+from langchain_core.messages import AIMessage
 from typing import Any, Dict
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import HumanMessage, SystemMessage
 from schemas.travel_state import TravelState
-from tools.mcp_client import tavily_mcp_search
+from tools.mcp_client import get_aviationstack_tools
 from core import get_chat_model
+from langgraph.prebuilt import create_react_agent
 
 
 async def flight_agent_node(state: TravelState) -> Dict[str, Any]:
-    """Agent specialized in searching flights and travel routes."""
+    """Agent specialized in searching flights and travel routes using Aviation Stack MCP."""
     query = state.get("user_query", "")
-    search_results = await tavily_mcp_search(f"flights and routes for {query}")
     
     llm = get_chat_model(temperature=0.2)
-    response = await llm.ainvoke([
-        HumanMessage(content=f"Find the best flight options and travel logistics from: {search_results}")
-    ])
+    tools = await get_aviationstack_tools()
+    
+    # Create a react agent with the MCP tools
+    agent = create_react_agent(llm, tools=tools)
+    
+    human_prompt = (
+        f"Find flight options and travel logistics for: {query}\n\n"
+        "Please generate the flight details covering the following points:\n"
+        "1. Likely departure time\n"
+        "2. Likely arrival time\n"
+        "3. Airline serving this route\n"
+        "4. Typical flight duration\n"
+        "5. Estimate airfare range\n"
+        "6. Peak season pricing warning\n"
+        "7. Booking advice"
+    )
+    
+    result = await agent.ainvoke({
+        "messages": [
+            SystemMessage(content="You are a flight agent. Find the best flight options and travel logistics for the user query using the available tools, particularly the aviationstack tools for accurate flight data."),
+            HumanMessage(content=human_prompt)
+        ]
+    })
+    
+    final_response = result["messages"][-1].content
     
     return {
-        "flight_results": response.content,
-        "llm_calls": 1,
+        "flight_results": final_response,
+        "messages": [
+            AIMessage(content="Flight recommendation generated")
+        ],
+        "llm_calls": state.get("llm_calls") + len(result["messages"]) // 2,
     }
