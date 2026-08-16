@@ -10,6 +10,7 @@ from langchain_core.messages import HumanMessage
 
 from schemas.travel_state import TravelState
 from agents import (
+    planner_node,
     flight_agent_node,
     hotel_agent_node,
     weather_agent_node,
@@ -22,17 +23,21 @@ def create_travel_workflow(checkpointer: MemorySaver | None = None):
     builder = StateGraph(TravelState)
 
     # 1. Register Agent Nodes
+    builder.add_node("planner_agent", planner_node)
     builder.add_node("flight_agent", flight_agent_node)
     builder.add_node("hotel_agent", hotel_agent_node)
     builder.add_node("weather_agent", weather_agent_node)
     builder.add_node("itinerary_agent", itinerary_agent_node)
 
-    # 2. Fan-out: Run flight, hotel & weather agents concurrently
-    builder.add_edge(START, "flight_agent")
-    builder.add_edge(START, "hotel_agent")
-    builder.add_edge(START, "weather_agent")
+    # 2. Extract & Resolve Cities first
+    builder.add_edge(START, "planner_agent")
 
-    # 3. Fan-in: Wait for all research agents before generating itinerary
+    # 3. Fan-out: Run flight, hotel & weather agents concurrently with resolved cities
+    builder.add_edge("planner_agent", "flight_agent")
+    builder.add_edge("planner_agent", "hotel_agent")
+    builder.add_edge("planner_agent", "weather_agent")
+
+    # 4. Fan-in: Wait for all research agents before generating itinerary
     builder.add_edge("flight_agent", "itinerary_agent")
     builder.add_edge("hotel_agent", "itinerary_agent")
     builder.add_edge("weather_agent", "itinerary_agent")
@@ -52,6 +57,10 @@ async def run_travel_workflow(user_query: str, thread_id: str = "default") -> Di
     initial_state = {
         "user_query": user_query,
         "messages": [HumanMessage(content=user_query)],
+        "origin": "",
+        "country": "",
+        "target_cities": [],
+        "duration_days": 5,
         "flight_results": "",
         "hotel_results": "",
         "weather_results": "",
@@ -59,3 +68,4 @@ async def run_travel_workflow(user_query: str, thread_id: str = "default") -> Di
         "llm_calls": 0,
     }
     return await travel_graph.ainvoke(initial_state, config=config)
+

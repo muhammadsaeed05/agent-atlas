@@ -10,6 +10,10 @@ from langgraph.prebuilt import create_react_agent
 async def flight_agent_node(state: TravelState) -> Dict[str, Any]:
     """Agent specialized in searching flights and travel routes using Aviation Stack MCP."""
     query = state.get("user_query", "")
+    target_cities = state.get("target_cities", [])
+    origin = state.get("origin", "")
+    dest_str = ", ".join(target_cities) if target_cities else query
+    route_context = f"from {origin} to {dest_str}" if origin else f"to {dest_str}"
     
     llm = get_chat_model(temperature=0.2)
     tools = await get_aviationstack_tools()
@@ -18,7 +22,7 @@ async def flight_agent_node(state: TravelState) -> Dict[str, Any]:
     agent = create_react_agent(llm, tools=tools)
     
     human_prompt = (
-        f"Find flight options and travel logistics for: {query}\n\n"
+        f"Find flight options and travel logistics {route_context} for: {query}\n\n"
         "Please generate the flight details covering the following points:\n"
         "1. Likely departure time\n"
         "2. Likely arrival time\n"
@@ -35,6 +39,7 @@ async def flight_agent_node(state: TravelState) -> Dict[str, Any]:
             HumanMessage(content=human_prompt)
         ]
     })
+
     
     final_response = result["messages"][-1].content
     
