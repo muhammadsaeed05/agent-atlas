@@ -1,6 +1,6 @@
 from typing import Any, Dict
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
-from langgraph.prebuilt import create_react_agent
+from langchain.agents import create_agent
 from schemas.travel_state import TravelState
 from tools.mcp_client import get_weather_tools
 from core import get_chat_model
@@ -15,7 +15,7 @@ async def weather_agent_node(state: TravelState) -> Dict[str, Any]:
     llm = get_chat_model(temperature=0.2)
     tools = await get_weather_tools()
 
-    agent = create_react_agent(llm, tools=tools)
+    agent = create_agent(model=llm, tools=tools)
 
     human_prompt = (
         f"Check weather conditions and forecast for destination: {cities_str} (Request: {query})\n\n"

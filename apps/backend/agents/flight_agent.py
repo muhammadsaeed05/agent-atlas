@@ -4,7 +4,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from schemas.travel_state import TravelState
 from tools.mcp_client import get_aviationstack_tools
 from core import get_chat_model
-from langgraph.prebuilt import create_react_agent
+from langchain.agents import create_agent
 
 
 async def flight_agent_node(state: TravelState) -> Dict[str, Any]:
@@ -18,8 +18,8 @@ async def flight_agent_node(state: TravelState) -> Dict[str, Any]:
     llm = get_chat_model(temperature=0.2)
     tools = await get_aviationstack_tools()
     
-    # Create a react agent with the MCP tools
-    agent = create_react_agent(llm, tools=tools)
+    # Create an agent with the MCP tools
+    agent = create_agent(model=llm, tools=tools)
     
     human_prompt = (
         f"Find flight options and travel logistics {route_context} for: {query}\n\n"
