@@ -27,7 +27,8 @@ LANGSMITH_PROJECT = os.getenv("LANGSMITH_PROJECT") or os.getenv("LANGCHAIN_PROJE
 LANGCHAIN_TRACING_V2 = os.getenv("LANGCHAIN_TRACING_V2", "false")
 
 # LLM Gateway defaults
-LLM_MODEL = os.getenv("LLM_MODEL", "openrouter/meta-llama/llama-3.3-70b-instruct")
-LLM_FALLBACK_MODEL = os.getenv("LLM_FALLBACK_MODEL", "groq/llama-3.3-70b-versatile")
+LLM_MODEL = os.getenv("LLM_MODEL", "openrouter/meta-llama/llama-3.3-70b-instruct").strip()
+LLM_FALLBACK_MODEL = os.getenv("LLM_FALLBACK_MODEL", "groq/llama-3.3-70b-versatile").strip()
 LLM_RETRIES = int(os.getenv("LLM_RETRIES", "2"))
 LLM_TIMEOUT = float(os.getenv("LLM_TIMEOUT", "60.0"))
+
