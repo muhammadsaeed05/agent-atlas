@@ -12,10 +12,11 @@ from .config import (
     LANGSMITH_PROJECT,
     LANGCHAIN_TRACING_V2,
 )
-from .llm_gateway import ChatGateway, get_chat_model, acomplete, complete
+from .llm_gateway import ChatGateway, ChatLiteLLM, get_chat_model, acomplete, complete
 
 __all__ = [
     "ChatGateway",
+    "ChatLiteLLM",
     "get_chat_model",
     "acomplete",
     "complete",

@@ -1,25 +1,32 @@
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, AsyncMock
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
+import litellm
 
 from core.llm_gateway import (
     ChatGateway,
+    ChatLiteLLM,
     get_chat_model,
     acomplete,
     complete,
     _format_messages,
     _setup_langsmith_tracing,
 )
-import litellm
 
 
 def test_format_messages():
     # String input
-    assert _format_messages("hello world") == [{"role": "user", "content": "hello world"}]
+    formatted_str = _format_messages("hello world")
+    assert len(formatted_str) == 1
+    assert isinstance(formatted_str[0], HumanMessage)
+    assert formatted_str[0].content == "hello world"
 
     # Dict input
     raw_dict = [{"role": "user", "content": "test"}]
-    assert _format_messages(raw_dict) == raw_dict
+    formatted_dict = _format_messages(raw_dict)
+    assert len(formatted_dict) == 1
+    assert isinstance(formatted_dict[0], HumanMessage)
+    assert formatted_dict[0].content == "test"
 
     # LangChain messages
     lc_messages = [
@@ -28,11 +35,7 @@ def test_format_messages():
         AIMessage(content="Here are flights to Tokyo."),
     ]
     formatted = _format_messages(lc_messages)
-    assert formatted == [
-        {"role": "system", "content": "You are a helpful travel assistant."},
-        {"role": "user", "content": "Find flights to Tokyo"},
-        {"role": "assistant", "content": "Here are flights to Tokyo."},
-    ]
+    assert formatted == lc_messages
 
 
 @pytest.mark.asyncio
@@ -62,7 +65,7 @@ async def test_chat_gateway_ainvoke():
         temperature=0.3,
         max_retries=2,
     )
-    assert chat_model._llm_type == "litellm_gateway"
+    assert chat_model._llm_type == "litellm-chat"
     assert chat_model.model == "gpt-4o-mini"
     assert chat_model.fallback_models == ["groq/llama-3.3-70b-versatile"]
     assert chat_model.temperature == 0.3
@@ -122,24 +125,34 @@ def test_chat_gateway_bind_tools():
 
 @pytest.mark.asyncio
 async def test_travel_workflow_with_llm_gateway():
-    from unittest.mock import AsyncMock
     from workflows.travel_workflow import run_travel_workflow
+
+    mock_resp = litellm.ModelResponse(
+        id="test-123",
+        choices=[
+            {
+                "index": 0,
+                "message": {
+                    "role": "assistant",
+                    "content": "Barcelona 3-day itinerary",
+                },
+                "finish_reason": "stop",
+            }
+        ],
+        usage={"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15},
+    )
 
     with patch("agents.hotel_agent.tavily_mcp_search", new_callable=AsyncMock) as mock_hotel, \
          patch("agents.flight_agent.get_aviationstack_tools", new_callable=AsyncMock) as mock_flight_tools, \
          patch("agents.weather_agent.get_weather_tools", new_callable=AsyncMock) as mock_weather_tools, \
-         patch("core.llm_gateway.litellm.acompletion") as mock_acompletion:
+         patch("litellm.acompletion") as mock_acompletion:
 
         mock_hotel.return_value = "Hotels in Barcelona"
         mock_flight_tools.return_value = []
         mock_weather_tools.return_value = []
-
-        mock_resp = AsyncMock()
-        mock_resp.choices = [AsyncMock(message=AsyncMock(content="Barcelona 3-day itinerary", tool_calls=None))]
         mock_acompletion.return_value = mock_resp
 
         result = await run_travel_workflow("Trip to Barcelona", thread_id="test-thread-gateway")
         assert result["itinerary"] == "Barcelona 3-day itinerary"
         assert result["flight_results"] == "Barcelona 3-day itinerary"
         assert result["hotel_results"] == "Barcelona 3-day itinerary"
-
